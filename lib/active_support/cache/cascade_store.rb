@@ -57,8 +57,7 @@ module ActiveSupport
 
       def read_multi(*names)
         if @read_multi_store.present?
-          binding.pry
-          @read_multi_store.read_multi(names)
+          @read_multi_store.read_multi(*names)
         else
           super *names
         end
