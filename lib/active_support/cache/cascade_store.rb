@@ -77,10 +77,10 @@ module ActiveSupport
         @stores.detect do |store|
           entry = store.send(:read_entry, key, options)
           if entry.nil? || entry.expired?
-            store.send(:delete_entry, key, options) if entry.expired?
             empty_stores << store
             entry = nil
           end
+          store.send(:delete_entry, key, options) if entry.present? && entry.expired?
           entry
         end
         unless entry.nil? || empty_stores.empty?
