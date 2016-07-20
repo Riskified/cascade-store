@@ -145,7 +145,18 @@ RSpec.describe 'CascadeCache' do
     expect(@cache.read('foo')).to be nil
   end
 
-  it 'test_race_condition_protection' do
+  it 'test race condition ttl is not supported' do
+    expect{ActiveSupport::Cache.lookup_store(:cascade_store, {
+        :expires_in => 60,
+        :race_condition_ttl => 10,
+        :stores => [
+            :memory_store,
+            [:memory_store, :expires_in => 60]
+        ]
+    })}.to raise_exception
+  end
+
+  xit 'test_race_condition_protection' do
     time = Time.now
     @cache.write('foo', 'bar', :expires_in => 60)
     allow(Time).to receive(:now).and_return(time + 61)
@@ -156,7 +167,7 @@ RSpec.describe 'CascadeCache' do
     expect('baz').to eq result
   end
 
-  it 'test_race_condition_protection_is_limited' do
+  xit 'test_race_condition_protection_is_limited' do
     time = Time.now
     @cache.write('foo', 'bar', :expires_in => 60)
     allow(Time).to receive(:now).and_return(time + 71)
@@ -167,7 +178,7 @@ RSpec.describe 'CascadeCache' do
     expect(result).to eq 'baz'
   end
 
-  it 'test_race_condition_protection_is_safe' do
+  xit 'test_race_condition_protection_is_safe' do
     time = Time.now
     @cache.write('foo', 'bar', :expires_in => 60)
     allow(Time).to receive(:now).and_return(time + 61)

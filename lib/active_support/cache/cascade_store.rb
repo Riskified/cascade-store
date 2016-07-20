@@ -30,6 +30,7 @@ module ActiveSupport
         options ||= {}
         super(options)
         @monitor = Monitor.new
+        raise Exception 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
         store_options = options.delete(:stores) || []
         @read_multi_store = nil
         @stores = store_options.map do |o|
@@ -74,9 +75,13 @@ module ActiveSupport
         entry = nil
         empty_stores = []
         @stores.detect do |store|
-          entry = store.send(:read_entry, key, options).tap do |cache_entry|
-            empty_stores << store if cache_entry.nil?
+          entry = store.send(:read_entry, key, options)
+          if entry.nil? || entry.expired?
+            store.send(:delete_entry, key, options) if entry.expired?
+            empty_stores << store
+            entry = nil
           end
+          entry
         end
         unless entry.nil? || empty_stores.empty?
           empty_stores.each do |store|
