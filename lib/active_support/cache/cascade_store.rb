@@ -1,4 +1,4 @@
-require 'monitor'
+require 'naught'
 
 module ActiveSupport
   module Cache
@@ -29,14 +29,18 @@ module ActiveSupport
       def initialize(options = nil, &blk)
         options ||= {}
         super(options)
-        @monitor = Monitor.new
         raise Exception 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
         store_options = options.delete(:stores) || []
+        @agent = if (defined? ::NewRelic::Agent) && (options.delete(:fire_custome_metrics) == true)
+                   ::NewRelic::Agent
+                 else
+                   Naught.build.new
+                 end
         @read_multi_store = nil
         @stores = store_options.map do |o|
           o = o.is_a?(Symbol) ? [o, options] : o
           store = ActiveSupport::Cache.lookup_store(*o)
-          @read_multi_store = store  if store.method(:read_multi).owner == store.class && @read_multi_store.nil?
+          @read_multi_store = store if store.method(:read_multi).owner == store.class && @read_multi_store.nil?
           store
         end
       end
@@ -77,8 +81,11 @@ module ActiveSupport
         @stores.detect do |store|
           entry = store.send(:read_entry, key, options)
           if entry.nil? || entry.expired?
+            @agent.increment_metric("Custom/CascadeStore/#{store.class}-MISS")
             empty_stores << store
             entry = nil
+          else
+            @agent.increment_metric("Custom/CascadeStore/#{store.class}-HIT")
           end
           store.send(:delete_entry, key, options) if entry.present? && entry.expired?
           entry
