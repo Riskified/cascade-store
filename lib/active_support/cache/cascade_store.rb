@@ -99,17 +99,18 @@ module ActiveSupport
         empty_stores = []
         @stores.detect do |store|
           entry = store.send(:read_entry, key, options)
-          if entry.nil? || entry.expired?
-            @agent.increment_metric("Custom/CascadeStore/#{store.class}-MISS")
+          if entry.nil? || expired?(entry)
+            agent.record_metric("Custom/CascadeStore/#{store.class}-MISS", 1)
             empty_stores << store
             entry = nil
           else
-            @agent.increment_metric("Custom/CascadeStore/#{store.class}-HIT")
+            agent.record_metric("Custom/CascadeStore/#{store.class}-HIT", 1)
           end
-          store.send(:delete_entry, key, options) if entry.present? && entry.expired?
+          store.send(:delete_entry, key, options) if expired?(entry)
           entry
         end
         unless entry.nil? || empty_stores.empty?
+          entry = ActiveSupport::Cache::Entry.new(entry) unless entry.is_a? ActiveSupport::Cache::Entry
           empty_stores.each do |store|
             store.send(:write_entry, key, entry, options)
           end
