@@ -31,11 +31,7 @@ module ActiveSupport
         super(options)
         raise Exception 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
         store_options = options.delete(:stores) || []
-        @agent = if (defined? ::NewRelic::Agent) && (options.delete(:fire_custom_metrics) == true)
-                   ::NewRelic::Agent
-                 else
-                   Naught.build.new
-                 end
+        @enable_custom_metrics = options.delete(:fire_custom_metrics)
         @read_multi_store = nil
         @stores = store_options.map do |o|
           o = o.is_a?(Symbol) ? [o, options] : o
@@ -106,6 +102,20 @@ module ActiveSupport
       def delete_entry(key, options)
         cascade(:delete_entry, key, options)
         true
+      end
+
+      private
+
+      def expired?(entry)
+        entry.respond_to?(:expired?) ? entry.expired? : false
+      end
+
+      def agent
+        @agent ||= if (defined? ::NewRelic::Agent) && @enable_custom_metrics
+                     ::NewRelic::Agent
+                   else
+                     Naught.build.new
+                   end
       end
     end
   end
