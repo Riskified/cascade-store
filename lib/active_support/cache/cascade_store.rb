@@ -65,9 +65,32 @@ module ActiveSupport
       end
 
       protected
+
       def cascade(method, *args)
         @stores.map do |store|
-          store.send(method, *args) rescue nil
+          if store.class.instance_methods(false)
+            store.send(method, *args) rescue nil
+          end
+        end
+      end
+
+      def cascade_write(key, value, options)
+        @stores.map do |store|
+          if store.method(:write).owner == store.class
+            store.send(:write, key, value, options)
+          else
+            store.send(:write_entry, key, value, options)
+          end rescue nil
+        end
+      end
+
+      def cascade_delete(key, options)
+        @stores.map do |store|
+          if store.method(:delete).owner == store.class
+            store.send(:delete, key, options)
+          else
+            store.send(:delete_entry, key, options)
+          end rescue nil
         end
       end
 
@@ -95,12 +118,12 @@ module ActiveSupport
       end
 
       def write_entry(key, entry, options)
-        cascade(:write_entry, key, entry, options)
+        cascade_write(key, entry, options)
         true
       end
 
       def delete_entry(key, options)
-        cascade(:delete_entry, key, options)
+        cascade_delete(key, options)
         true
       end
 
