@@ -68,15 +68,14 @@ module ActiveSupport
 
       def cascade(method, *args)
         @stores.map do |store|
-          if store.class.instance_methods(false)
-            store.send(method, *args) rescue nil
-          end
+          store.send(method, *args) rescue nil
         end
       end
 
       def cascade_write(key, value, options)
         @stores.map do |store|
           if store.method(:write).owner == store.class
+            value = value.value if value.is_a? ActiveSupport::Cache::Entry
             store.send(:write, key, value, options)
           else
             store.send(:write_entry, key, value, options)
