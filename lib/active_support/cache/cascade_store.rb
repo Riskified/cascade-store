@@ -109,7 +109,7 @@ module ActiveSupport
           entry
         end
         unless entry.nil? || empty_stores.empty?
-          entry = ActiveSupport::Cache::Entry.new(entry) unless entry.is_a? ActiveSupport::Cache::Entry
+          entry = ActiveSupport::Cache::Entry.new(entry, options) unless entry.is_a? ActiveSupport::Cache::Entry
           empty_stores.each do |store|
             store.send(:write_entry, key, entry, options)
           end
