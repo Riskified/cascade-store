@@ -32,9 +32,9 @@ module ActiveSupport
       end
 
       def read_multi(*names)
-        results = @local_store.read_multi(*name)
+        results = @local_store.read_multi(*names)
         missing_keys = names - results.keys
-        results.merge @redis_store.read_multi(*missing_keys)
+        missing_keys.empty? ? results : results.merge @redis_store.read_multi(*missing_keys)
       end
 
       protected
@@ -45,33 +45,33 @@ module ActiveSupport
       end
 
       def read_entry(key, options)
-        entry = @local_store.read_entry(key, options)
+        entry = @local_store.send(:read_entry, key, options)
         if entry && entry.expired?
-          @local_store.delete_entry(key)
+          @local_store.send(:delete_entry, key)
           entry = nil
         end
         if entry.nil?
-          agent.record_metric("Custom/CascadeStore/#{store.class}-MISS", 1)
-          entry = @redis_store.read_entry(key, options)
+          agent.record_metric('Custom/CascadeStore/local-MISS', 1)
+          entry = @redis_store.send(:read_entry, key, options)
           if entry.present?
-            agent.record_metric("Custom/CascadeStore/#{store.class}-HIT", 1)
-            @local_cache.write_entry(key, entry, options)
+            agent.record_metric('Custom/CascadeStore/redis-HIT', 1)
+            @local_store.send(:write_entry, key, entry, options)
           else
-            agent.record_metric("Custom/CascadeStore/#{store.class}-MISS", 1)
+            agent.record_metric('Custom/CascadeStore/redis-MISS', 1)
           end
         else
-          agent.record_metric("Custom/CascadeStore/#{store.class}-HIT", 1)
+          agent.record_metric('Custom/CascadeStore/local-HIT', 1)
         end
         entry
       end
 
       def write_entry(key, entry, options)
-        cascade(:write_entry, [key, entry, options])
+        cascade(:write_entry, key, entry, options)
         true
       end
 
       def delete_entry(key, options)
-        cascade_delete(:delete_entry, [key, options])
+        cascade_delete(:delete_entry, key, options)
         true
       end
 
