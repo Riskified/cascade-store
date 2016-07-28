@@ -1,5 +1,4 @@
-require 'naught'
-
+require 'active_support/cache/cascade_base'
 module ActiveSupport
   module Cache
     # Most of the code is taken from https://github.com/jch/activesupport-cascadestore with
@@ -18,7 +17,7 @@ module ActiveSupport
     # Increment/Decrement: increment/decrement each store, returning
     # the new number if any stores was successfully
     # incremented/decremented, nil otherwise
-    class CascadeStore < Store
+    class CascadeStore < CascadeBase
       attr_reader :stores
 
       # Initialize a CascadeStore with +options[:stores]+, an array of
@@ -29,9 +28,7 @@ module ActiveSupport
       def initialize(options = nil, &blk)
         options ||= {}
         super(options)
-        raise Exception 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
         store_options = options.delete(:stores) || []
-        @enable_custom_metrics = options.delete(:fire_custom_metrics)
         @read_multi_store = nil
         @stores = store_options.map do |o|
           o = o.is_a?(Symbol) ? [o, options] : o
@@ -39,21 +36,6 @@ module ActiveSupport
           @read_multi_store = store if store.method(:read_multi).owner == store.class && @read_multi_store.nil?
           store
         end
-      end
-
-      def increment(name, amount = 1, options = nil)
-        nums = cascade(:increment, name, amount, options)
-        nums.detect { |n| !n.nil? }
-      end
-
-      def decrement(name, amount = 1, options = nil)
-        nums = cascade(:decrement, name, amount, options)
-        nums.detect { |n| !n.nil? }
-      end
-
-      def delete_matched(matcher, options = nil)
-        cascade(:delete_matched, matcher, options)
-        nil
       end
 
       def read_multi(*names)
@@ -125,20 +107,6 @@ module ActiveSupport
       def delete_entry(key, options)
         cascade_delete(key, options)
         true
-      end
-
-      private
-
-      def expired?(entry)
-        entry.respond_to?(:expired?) ? entry.expired? : false
-      end
-
-      def agent
-        @agent ||= if (defined? ::NewRelic::Agent) && @enable_custom_metrics
-                     ::NewRelic::Agent
-                   else
-                     Naught.build.new
-                   end
       end
     end
   end
