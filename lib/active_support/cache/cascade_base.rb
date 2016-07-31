@@ -6,7 +6,7 @@ module ActiveSupport
       def initialize(options = nil, &blk)
         options ||= {}
         super(options)
-        raise Exception 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
+        raise Exception.new 'race_condition_ttl options is currently not supported in cascade store' if options.key? :race_condition_ttl
         @enable_custom_metrics = options.delete(:fire_custom_metrics)
       end
 

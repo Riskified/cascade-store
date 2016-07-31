@@ -153,7 +153,7 @@ RSpec.describe 'CascadeCache' do
             :memory_store,
             [:memory_store, :expires_in => 60]
         ]
-    })}.to raise_exception
+    })}.to raise_exception 'race_condition_ttl options is currently not supported in cascade store'
   end
 
   xit 'test_race_condition_protection' do
