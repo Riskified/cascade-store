@@ -25,18 +25,13 @@ module ActiveSupport
         nil
       end
 
+      def clear(options = nil)
+        cascade(:clear, options)
+      end
+
       protected
 
       def cascade(method, *args)
-      end
-
-      def read_entry(key, options)
-      end
-
-      def write_entry(key, entry, options)
-      end
-
-      def delete_entry(key, options)
       end
 
       private

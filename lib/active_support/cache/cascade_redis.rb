@@ -10,8 +10,8 @@ module ActiveSupport
         super(options)
         local_store_options =  options.delete(:local_store) || {}
         redis_store_options =  options.delete(:redis_store) || {}
-        @local_store = ActiveSupport::Cache.lookup_store(*[:memory_store, local_store_options])
-        @redis_store = ActiveSupport::Cache.lookup_store(*[:redis_store, redis_store_options])
+        @local_store = ActiveSupport::Cache.lookup_store(*[:memory_store, local_store_options.merge(options)])
+        @redis_store = ActiveSupport::Cache.lookup_store(*[:redis_store, redis_store_options.merge(options)])
       end
 
       def read_multi(*names)
@@ -22,23 +22,32 @@ module ActiveSupport
         else
           redis_results = results.merge @redis_store.read_multi(*missing_keys)
           redis_results.each do |key, value|
-            @local_store.write_entry(key, value)
+            @local_store.send(:write_entry, key, value, {}) if value.is_a?(ActiveSupport::Cache::Entry)
           end
           results.merge redis_results
+        end
+      end
+
+      def clear(options = nil)
+        [].tap do |res|
+          res << @local_store.send(:clear)
+          res << @redis_store.send(:clear)
         end
       end
 
       protected
 
       def cascade(method, *args)
-        @local_store.send(method, *args)
-        @redis_store.send(method, *args)
+        [].tap do |res|
+          res << @local_store.send(method, *args) rescue nil
+          res << @redis_store.send(method, *args) rescue nil
+        end
       end
 
       def read_entry(key, options)
         entry = @local_store.send(:read_entry, key, options)
         if entry && entry.expired?
-          @local_store.send(:delete_entry, key)
+          @local_store.send(:delete_entry, key, options)
           entry = nil
         end
         if entry.nil?
@@ -46,6 +55,7 @@ module ActiveSupport
           entry = @redis_store.send(:read_entry, key, options)
           if entry.present?
             agent.record_metric('Custom/CascadeStore/redis-HIT', 1)
+            entry = ActiveSupport::Cache::Entry(entry, options) unless entry.is_a?(ActiveSupport::Cache::Entry)
             @local_store.send(:write_entry, key, entry, options)
           else
             agent.record_metric('Custom/CascadeStore/redis-MISS', 1)
@@ -62,7 +72,7 @@ module ActiveSupport
       end
 
       def delete_entry(key, options)
-        cascade_delete(:delete_entry, key, options)
+        cascade(:delete_entry, key, options)
         true
       end
     end

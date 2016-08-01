@@ -28,6 +28,9 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.11.2'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
+  spec.add_development_dependency 'fakeredis', '~> 0.5.0'
   spec.add_runtime_dependency 'activesupport', '~> 4'
   spec.add_runtime_dependency 'naught', '~> 1.1.0'
+  spec.add_runtime_dependency 'redis', '~> 3.3.0'
+  spec.add_runtime_dependency 'redis-rails', '~> 5.0.1'
 end
