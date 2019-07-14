@@ -1,0 +1,40 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/ruby:2.4.4
+    steps:
+      - checkout
+      - run: bundle install
+      - run: bundle exec rspec spec
+  deploy:
+    docker:
+      - image: circleci/ruby:2.4.4
+    steps:
+      - checkout
+      - run: gem build cascade-store.gemspec
+      - run: mkdir ~/.gem
+      - run: curl -u${ARTIFACTORY_USER}:${ARTIFACTORY_PASSWORD} https://riskified.jfrog.io/riskified/api/gems/gems/api/v1/api_key.yaml > ~/.gem/credentials
+      - run: chmod 600 ~/.gem/credentials
+      - run: gem source -a https://${ARTIFACTORY_USER}:${ARTIFACTORY_PASSWORD}@riskified.jfrog.io/riskified/api/gems/gems-local/
+      - run: echo cascade-store-$(git describe --tags).gem
+      - run: gem push cascade-store-$(git describe --tags).gem --key rubygems --host https://riskified.jfrog.io/riskified/api/gems/gems-local
+workflows:
+  version: 2
+  build-n-deploy:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - deploy:
+          context: artifactory-rw
+          requires:
+            - build
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /.*/
+
+
